@@ -8,14 +8,15 @@ memberlist:
   - loki:7946  
 
 common:
+  path_prefix: /loki
   replication_factor: 1
   storage:
     s3:
       endpoint: minio:9000
       insecure: true
-      bucketnames: loki
-      access_key_id: 697d0993dd097f38d5b8
-      secret_access_key: 9f88738761b57c63f6a81bdfd471
+      bucketnames: loki-data
+      access_key_id: loki
+      secret_access_key: supersecret
       s3forcepathstyle: true
   ring:
     kvstore:
@@ -24,7 +25,17 @@ common:
 
 ingester:
   wal:
-    enabled: false
+    enabled: true
+
+storage_config:
+  boltdb_shipper:
+    active_index_directory: /loki/index
+    cache_location: /loki/index_cache
+    resync_interval: 5s
+    shared_store: s3
+  aws:
+    s3: s3://loki:supersecret@minio:9000/loki-data
+    s3forcepathstyle: true
 
 schema_config:
   configs:
@@ -36,15 +47,7 @@ schema_config:
         prefix: index_
         period: 24h
 
-storage_config:
-  boltdb_shipper:
-    active_index_directory: /loki/index
-    cache_location: /loki/index_cache
-    resync_interval: 5s
-    shared_store: s3
-  aws:
-    s3: s3://697d0993dd097f38d5b8:9f88738761b57c63f6a81bdfd471@minio:9000/loki
-    s3forcepathstyle: true
+
 
 compactor:
   working_directory: /loki/boltdb-shipper-compactor
@@ -59,10 +62,22 @@ ruler:
     client:
       url: http://prometheus:9090/api/v1/write
   storage:
+    type: s3
     s3:
-      bucketnames: ruler
+      endpoint: minio:9000
+      insecure: true
+      bucketnames: loki-ruler
+      access_key_id: loki
+      secret_access_key: supersecret
+      s3forcepathstyle: true
+  rule_path: /loki/rules/fake/rules
+  # storage:
+  #   local:
+  #     directory: /tmp/rulestorage
+  #   type: local
   wal:
-    dir: ruler-wal
+    dir: /loki/rules/fake/wal
+  
 
 
 # By default, Loki will send anonymous, but uniquely-identifiable usage and configuration

@@ -41,13 +41,20 @@ services:
       logging: "promtail"
       logging_jobname: "containerlogs"
     restart: unless-stopped
-    entrypoint: sh
-    command: -c 'mkdir -p /export/loki && mkdir -p /export/ruler && minio server /export'
+    entrypoint:
+      - sh
+      - -euc
+      - |
+        mkdir -p /data/loki-data && \
+        mkdir -p /data/loki-ruler && \
+        minio server /data
     environment:
-      - MINIO_ROOT_USER=697d0993dd097f38d5b8
-      - MINIO_ROOT_PASSWORD=9f88738761b57c63f6a81bdfd471
+      - MINIO_ROOT_USER=loki
+      - MINIO_ROOT_PASSWORD=supersecret
+      - MINIO_PROMETHEUS_AUTH_TYPE=public
+      - MINIO_UPDATE=off
     volumes:
-      - minio_data:/export
+      - minio_data:/data
     ports:
       - 9000:9000
     networks:
@@ -63,8 +70,8 @@ services:
     ports:
       - "3100:3100"
     volumes:
-      - ./loki/docker-config.yaml:/etc/loki/docker-config.yaml
-    command: -config.file=/etc/loki/docker-config.yaml
+      - ./loki/config1-minio.yaml:/etc/loki/run-config.yaml
+    command: -config.file=/etc/loki/run-config.yaml
     networks:
       - loki
     depends_on:
@@ -101,12 +108,10 @@ services:
         datasources:
         - name: Loki
           type: loki
-          access: proxy 
+          access: proxy
           orgId: 1
           url: http://loki:3100
-          basicAuth: false
           isDefault: true
-          version: 1
           editable: true
         - name: Prometheus
           type: prometheus
