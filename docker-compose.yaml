@@ -42,7 +42,7 @@ services:
       logging_jobname: "containerlogs"
     restart: unless-stopped
     entrypoint: sh
-    command: -c 'mkdir -p /export/loki && mkdir -p /export/rules && minio server /export'
+    command: -c 'mkdir -p /export/loki && mkdir -p /export/ruler && minio server /export'
     environment:
       - MINIO_ROOT_USER=697d0993dd097f38d5b8
       - MINIO_ROOT_PASSWORD=9f88738761b57c63f6a81bdfd471

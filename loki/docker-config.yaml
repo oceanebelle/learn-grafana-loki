@@ -5,7 +5,7 @@ server:
 
 memberlist:
   join_members:
-    - loki:7946  
+  - loki:7946  
 
 common:
   replication_factor: 1
@@ -21,31 +21,35 @@ common:
     kvstore:
       store: memberlist
 
-compactor:
-  working_directory: /loki/boltdb-shipper-compactor
-  shared_store: aws
 
 ingester:
   wal:
     enabled: false
-    dir: /loki/ruler-wal
 
 schema_config:
   configs:
     - from: 2020-10-24
       store: boltdb-shipper
-      object_store: s3
+      object_store: aws
       schema: v11
       index:
         prefix: index_
         period: 24h
 
 storage_config:
- boltdb_shipper:
-   active_index_directory: /loki/index
-   cache_location: /loki/index_cache
-   resync_interval: 5s
-   shared_store: s3  
+  boltdb_shipper:
+    active_index_directory: /loki/index
+    cache_location: /loki/index_cache
+    resync_interval: 5s
+    shared_store: s3
+  aws:
+    s3: s3://697d0993dd097f38d5b8:9f88738761b57c63f6a81bdfd471@minio:9000/loki
+    s3forcepathstyle: true
+
+compactor:
+  working_directory: /loki/boltdb-shipper-compactor
+  shared_store: s3
+
 
 ruler:
   alertmanager_url: http://localhost:9093
@@ -56,7 +60,9 @@ ruler:
       url: http://prometheus:9090/api/v1/write
   storage:
     s3:
-      bucketnames: rules
+      bucketnames: ruler
+  wal:
+    dir: ruler-wal
 
 
 # By default, Loki will send anonymous, but uniquely-identifiable usage and configuration
