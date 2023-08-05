@@ -3,29 +3,61 @@ auth_enabled: false
 server:
   http_listen_port: 3100
 
+memberlist:
+  join_members:
+    - loki:7946  
+
 common:
-  path_prefix: /loki
-  storage:
-    filesystem:
-      chunks_directory: /loki/chunks
-      rules_directory: /loki/rules
   replication_factor: 1
+  storage:
+    s3:
+      endpoint: minio:9000
+      insecure: true
+      bucketnames: loki
+      access_key_id: 697d0993dd097f38d5b8
+      secret_access_key: 9f88738761b57c63f6a81bdfd471
+      s3forcepathstyle: true
   ring:
     kvstore:
-      store: inmemory
+      store: memberlist
+
+compactor:
+  working_directory: /loki/boltdb-shipper-compactor
+  shared_store: aws
+
+ingester:
+  wal:
+    enabled: false
+    dir: /loki/ruler-wal
 
 schema_config:
   configs:
     - from: 2020-10-24
       store: boltdb-shipper
-      object_store: filesystem
+      object_store: s3
       schema: v11
       index:
         prefix: index_
         period: 24h
 
+storage_config:
+ boltdb_shipper:
+   active_index_directory: /loki/index
+   cache_location: /loki/index_cache
+   resync_interval: 5s
+   shared_store: s3  
+
 ruler:
   alertmanager_url: http://localhost:9093
+  enable_api: true
+  remote_write:
+    enabled: true
+    client:
+      url: http://prometheus:9090/api/v1/write
+  storage:
+    s3:
+      bucketnames: rules
+
 
 # By default, Loki will send anonymous, but uniquely-identifiable usage and configuration
 # analytics to Grafana Labs. These statistics are sent to https://stats.grafana.org/

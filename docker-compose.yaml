@@ -63,8 +63,8 @@ services:
     ports:
       - "3100:3100"
     volumes:
-      - ./loki/local-config.yaml:/etc/loki/local-config.yaml
-    command: -config.file=/etc/loki/local-config.yaml
+      - ./loki/docker-config.yaml:/etc/loki/docker-config.yaml
+    command: -config.file=/etc/loki/docker-config.yaml
     networks:
       - loki
     depends_on:
@@ -84,6 +84,9 @@ services:
 
   grafana:
     container_name: grafana
+    labels:
+      logging: "promtail"
+      logging_jobname: "containerlogs"
     environment:
       - GF_PATHS_PROVISIONING=/etc/grafana/provisioning
       - GF_AUTH_ANONYMOUS_ENABLED=true
@@ -143,6 +146,9 @@ services:
   prometheus:
     image: prom/prometheus:latest
     container_name: prometheus
+    labels:
+      logging: "promtail"
+      logging_jobname: "containerlogs"
     restart: unless-stopped
     volumes:
       - ./prometheus/config.yml:/etc/prometheus/prometheus.yml
@@ -152,6 +158,7 @@ services:
       - '--storage.tsdb.path=/prometheus'
       - '--web.console.libraries=/etc/prometheus/console_libraries'
       - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-remote-write-receiver'
       - '--web.enable-lifecycle'
     expose:
       - 9090
