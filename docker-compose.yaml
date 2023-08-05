@@ -15,6 +15,20 @@ services:
     networks:
       - loki
 
+  echo-app:
+    image: mendhak/http-https-echo:30
+    container_name: echo-app
+    labels:
+      logging: "promtail"
+      logging_jobname: "containerlogs"
+    environment:
+        - HTTP_PORT=8888
+        - HTTPS_PORT=9999
+        - LOG_WITHOUT_NEWLINE=true
+    ports:
+        - "8081:8888"
+        - "8443:9999"
+
 
   loki:
     image: grafana/loki:2.8.0
