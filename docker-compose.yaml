@@ -3,6 +3,11 @@ version: "3"
 networks:
   loki:
 
+volumes:
+  prometheus_data: {}
+  minio_data: {}
+
+
 services:
   nginx-app:
     container_name: nginx-app
@@ -29,17 +34,45 @@ services:
         - "8081:8888"
         - "8443:9999"
 
-
-  loki:
-    image: grafana/loki:2.8.0
+  minio:
+    image: minio/minio:latest
+    container_name: minio
+    labels:
+      logging: "promtail"
+      logging_jobname: "containerlogs"
+    restart: unless-stopped
+    entrypoint: sh
+    command: -c 'mkdir -p /export/loki && mkdir -p /export/rules && minio server /export'
+    environment:
+      - MINIO_ROOT_USER=697d0993dd097f38d5b8
+      - MINIO_ROOT_PASSWORD=9f88738761b57c63f6a81bdfd471
+    volumes:
+      - minio_data:/export
     ports:
-      - "3100:3100"
-    command: -config.file=/etc/loki/local-config.yaml
+      - 9000:9000
     networks:
       - loki
 
+
+  loki:
+    image: grafana/loki:2.8.0
+    container_name: loki
+    labels:
+      logging: "promtail"
+      logging_jobname: "containerlogs"
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./loki/local-config.yaml:/etc/loki/local-config.yaml
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - loki
+    depends_on:
+      - minio
+
   promtail:
     image: grafana/promtail:2.8.0
+    container_name: promtail
     volumes:
       - /var/log:/var/log
       - ./promtail/config.yml:/etc/promtail/config.yml
@@ -50,6 +83,7 @@ services:
       - loki
 
   grafana:
+    container_name: grafana
     environment:
       - GF_PATHS_PROVISIONING=/etc/grafana/provisioning
       - GF_AUTH_ANONYMOUS_ENABLED=true
@@ -70,7 +104,16 @@ services:
           basicAuth: false
           isDefault: true
           version: 1
-          editable: false
+          editable: true
+        - name: Prometheus
+          type: prometheus
+          access: proxy 
+          orgId: 1
+          url: http://prometheus:9090
+          basicAuth: false
+          isDefault: false
+          version: 1
+          editable: true
         EOF
         /run.sh
     image: grafana/grafana:latest
@@ -78,3 +121,40 @@ services:
       - "3000:3000"
     networks:
       - loki
+
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node-exporter
+    restart: unless-stopped
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    expose:
+      - 9100
+    networks:
+      - loki
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    restart: unless-stopped
+    volumes:
+      - ./prometheus/config.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    expose:
+      - 9090
+    networks:
+      - loki
+    
